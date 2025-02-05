@@ -6,7 +6,7 @@ import os
 from dotenv import dotenv_values
 from flask import Flask, flash, request, redirect
 from werkzeug.utils import secure_filename
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from flask_httpauth import HTTPTokenAuth
 
 import cv2
@@ -154,27 +154,27 @@ def predict_web_serve():
 @app.route("/predict/v1", methods=['POST', 'GET'])
 @auth.login_required
 def predict_yolov5():
-    """OD service"""
-    if request.method == 'POST':
-        boxes = []
+    """Objects detection service v1"""
+    print(request)
 
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        image = request.files['file']
-        # If the user does not select a file, the browser submits an
-        # empty file without a filename.
-        if image.filename == '':
-            flash('No selected file')
-        if image and allowed_file(image.filename):
-            filename = secure_filename(image.filename)
-            boxes, classes, scores = predict_v1(image)
-            # image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
-        return {'boxes': boxes, 'classes': classes, 'scores': scores}
-    else:
-        return {'boxes': '[]'}
+    boxes = []
+
+    # check if the post request has the file part
+    if 'image_file' not in request.files:
+        flash('No file part')
+        return {'error': "No file in the request"}
+    image = request.files['image_file']
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if image.filename == '':
+        flash('No selected file')
+    if image and allowed_file(image.filename):
+        filename = secure_filename(image.filename)
+        boxes, classes, scores = predict_v1(image)
+        image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        
+    return {'boxes': boxes, 'classes': classes, 'scores': scores}
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
