@@ -9,7 +9,7 @@ from rknnlite.api import RKNNLite
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
 
-RK3588_RKNN_MODEL = 'yolov5.rknn'
+RK3588_RKNN_MODEL = 'yolov5s_relu.rknn'
 
 
 if __name__ == '__main__':
