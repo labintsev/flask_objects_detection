@@ -16,7 +16,7 @@ from rknnlite.api import RKNNLite
 from yolov5 import post_process
 
 # device tree for RK356x/RK3576/RK3588
-RK3588_RKNN_MODEL = 'yolov5.rknn'
+RK3588_RKNN_MODEL = 'yolov5s_relu.rknn'
 DEVICE_NAME = 'RK3588'
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
