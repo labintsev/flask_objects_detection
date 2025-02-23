@@ -6,7 +6,7 @@ from yolov5 import post_process
 
 ANCHORS = 'data/anchors_yolov5.txt'
 
-RK3588_RKNN_MODEL = 'models/yolov5s_relu.rknn'
+RK3588_RKNN_MODEL = 'models/yolov8n640.rknn'
 DEVICE_NAME = 'RK3588'
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
