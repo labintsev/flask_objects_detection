@@ -16,6 +16,7 @@ class DetectorRknnLite:
     def __init__(self, model_path):
         from rknnlite.api import RKNNLite
         self.rknn_lite = RKNNLite()
+        self.anchors = np.loadtxt(ANCHORS).reshape(3, -1, 2).tolist()
         print('--> Load RKNN model')
         ret = self.rknn_lite.load_rknn(model_path)
         if ret != 0:
@@ -40,7 +41,7 @@ class DetectorRknnLite:
         return img
     
     def postprocess(self, outputs):
-        boxes, classes, scores = post_process(outputs, anchors)
+        boxes, classes, scores = post_process(outputs, self.anchors)
         return boxes, classes, scores
     
     def release(self):
@@ -66,9 +67,10 @@ class DetectorOnnx:
         file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
         img_data_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img_data_ndarray, cv2.COLOR_BGR2RGB)
-        img = np.rollaxis(img, axis=2, start=0)
-        img = np.expand_dims(img, 0).astype(np.float32)
-        return img
+        input_data = img.transpose((2,0,1))
+        input_data = np.expand_dims(input_data, 0).astype(np.float32)
+        input_data = input_data/255.
+        return input_data
     
     def postprocess(self, outputs):
         boxes, classes, scores = post_process(outputs, self.anchors)
