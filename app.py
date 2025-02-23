@@ -1,4 +1,5 @@
 """House price prediction service"""
+import argparse
 import time
 import atexit
 import os
@@ -6,16 +7,15 @@ import os
 from dotenv import dotenv_values
 from flask import Flask, flash, request, redirect
 from werkzeug.utils import secure_filename
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from flask_httpauth import HTTPTokenAuth
 
 import cv2
 import numpy as np
-from rknnlite.api import RKNNLite
 
 from yolov5 import post_process
+from predict_utils import init_rknn_lite, predict
 
-# device tree for RK356x/RK3576/RK3588
 RK3588_RKNN_MODEL = 'yolov5s_relu.rknn'
 DEVICE_NAME = 'RK3588'
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
@@ -31,30 +31,7 @@ CORS(app)
 
 config = dotenv_values(".env")
 auth = HTTPTokenAuth(scheme='Bearer')
-tokens = {
-    config['APP_TOKEN']: "user1",
-}
-
-
-def init_rknn_lite(model_path):
-    rknn_lite = RKNNLite()
-    # Load RKNN model
-    print('--> Load RKNN model')
-    ret = rknn_lite.load_rknn(model_path)
-    if ret != 0:
-        print('Load RKNN model failed')
-        exit(ret)
-    print('done')
-
-    # Init runtime environment
-    print('--> Init runtime environment')
-    ret = rknn_lite.init_runtime()
-    if ret != 0:
-        print('Init runtime environment failed')
-        exit(ret)
-    print('done')
-    return rknn_lite
-
+tokens = { config['APP_TOKEN']: "user1", }
 
 app.config['RKNN_LITE'] = init_rknn_lite(RK3588_RKNN_MODEL)
 ANCHORS = 'anchors_yolov5.txt'
@@ -70,18 +47,19 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def predict(image):
+def predict_v0(image):
     rknn_lite = app.config['RKNN_LITE']
     file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
     print(file_bytes)
     img_data_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
     img = cv2.cvtColor(img_data_ndarray, cv2.COLOR_BGR2RGB)
+    img.resize((900, 900, 3))
     img = np.expand_dims(img, 0)
 
     # Inference
     print('--> Running model')
     t0 = time.time()
-    outputs = rknn_lite.inference(inputs=[img])
+    outputs = predict(img, rknn_lite)
     print('Inference take: ', time.time() - t0, 'ms')
 
     return str(outputs)
@@ -177,6 +155,11 @@ def predict_yolov5():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-e', '--engine', nargs='+',
+                        help='Set inference engine: rknn or onnx, default is onnx',
+                        default='onnx')
+    args = parser.parse_args()
     app.run(host='0.0.0.0', debug=True)
 
 
