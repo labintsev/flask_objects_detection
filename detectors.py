@@ -30,8 +30,14 @@ class DetectorRknnLite:
             exit(ret)
         print('done')
 
-    def predict(self, image):
-        return predict_v1(image, self.rknn_lite)
+    def predict(self, image_file):
+        image = self.preprocess(image_file)
+        print('--> Running model')
+        t0 = time.time()
+        outputs = self.rknn_lite.inference(inputs=[image])
+        boxes, classes, scores = post_process(outputs, self.anchors)
+        print('Inference take: ', time.time() - t0, 'ms')
+        return str(boxes), str(classes), str(scores)
     
     def preprocess(self, image):
         file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
@@ -80,35 +86,29 @@ class DetectorOnnx:
         del(self.onnx_session)
 
 
+class DetectorOnnxSliced(DetectorOnnx):
+    def __init__(self, model_path):
+        super().__init__(model_path)
+
+    def preprocess(self, image):
+        file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
+        img_data_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img_data_ndarray, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (1920, 1920))
+        img = np.expand_dims(img, 0)
+        return img
+    
+    def predict(self, image):
+        img = self.preprocess(image)
+        return predict_sliced(img, self.onnx_session)
+
+
 def rknn_builder():
     return DetectorRknnLite(RK3588_RKNN_MODEL)
 
+
 def onnx_builder():
     return DetectorOnnx(ONNX_MODEL)
-
-
-def predict_v1(image, rknn_lite):
-    file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
-    print(file_bytes)
-    img_data_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-    img = cv2.cvtColor(img_data_ndarray, cv2.COLOR_BGR2RGB)
-    img = np.expand_dims(img, 0)
-
-    with open(ANCHORS, 'r') as f:
-        values = [float(_v) for _v in f.readlines()]
-        anchors = np.array(values).reshape(3,-1,2).tolist()
-        print("use anchors from '{}', which is {}".format(ANCHORS, anchors))
-    
-    # Inference
-    print('--> Running model')
-    t0 = time.time()
-    outputs = rknn_lite.inference(inputs=[img])
-    boxes, classes, scores = post_process(outputs, anchors)
-
-    print('Inference take: ', time.time() - t0, 'ms')
-    print(boxes, classes, scores)
-    return str(boxes), str(classes), str(scores)
-
 
 
 def slice_image(image, window_size):
@@ -118,7 +118,7 @@ def slice_image(image, window_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
 
 
-def predict_sliced(img, rknn_lite):
+def predict_sliced(img, detector):
     window_size = (300, 300)  # Define the size of the window
 
     all_outputs = []
@@ -128,7 +128,7 @@ def predict_sliced(img, rknn_lite):
     t0 = time.time()
     for (x, y, window) in slice_image(img[0], window_size):
         window = np.expand_dims(window, 0)
-        outputs = rknn_lite.inference(inputs=[img])
+        outputs = detector.predict(img)
         for output in outputs:
             # Adjust the coordinates based on the window position
             adjusted_output = [
