@@ -1,4 +1,6 @@
-"""House price prediction service"""
+"""Objects detection prediction service. 
+Supported engines: onnx, rknn"""
+
 import argparse
 import atexit
 import os
@@ -8,8 +10,6 @@ from flask import Flask, flash, request
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from flask_httpauth import HTTPTokenAuth
-
-import numpy as np
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
