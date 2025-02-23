@@ -74,7 +74,7 @@ class DetectorOnnx:
     
     def postprocess(self, outputs):
         boxes, classes, scores = post_process(outputs, self.anchors)
-        return str(boxes), str(classes), str(scores)
+        return str(boxes.astype(int)), str(classes.astype(int)), str(scores)
     
     def release(self):
         del(self.onnx_session)
