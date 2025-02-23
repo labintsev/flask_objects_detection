@@ -1,11 +1,12 @@
 # Flask Object Detection Service
 
-This project provides an object detection service using YOLOv5 models. The service can run inference using either RKNN or ONNX models and is built using Flask.
+This project provides an object detection Flask service using YOLOv5 models. 
+The service can run inference using either ONNX models or RKNN (Orange Pi 5 Plus tested). 
+Note: To use RKNN engine, install it manually from `distr/` directory. 
 
 ## Project Structure
 
 ```
-__pycache__/
 data/
 distr/
 models/
@@ -59,6 +60,11 @@ pip install -r requirements.txt
 
 ```
 APP_TOKEN=your_secret_token
+```
+
+5. Install RKNN engine (for Orange Pi 5 devices):
+```sh
+pip install distr/rknn_toolkit_lite2-2.3.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
 ```
 
 ## Usage
