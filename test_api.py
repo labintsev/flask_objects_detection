@@ -13,21 +13,15 @@ class TestApi(unittest.TestCase):
         resp = requests.get(ENDPOINT)
         self.assertIn('Objects detection', resp.text)
 
-    def test_api(self):
-        data = {'file': 42}
-        resp = requests.post(ENDPOINT + '/predict/v1',
-                             json=data,
-                             headers=HEADERS)
+    def test_boxes_in_respones(self):
+        with open('data/bus.jpg', 'rb') as f:
+            files = {'image_file': f}
+            resp = requests.post(ENDPOINT + '/predict',
+                                    files=files,
+                                    headers=HEADERS)
+        # print(resp.text)
         self.assertIn('boxes', resp.text)
 
-    def test_file_upload(self):
-        with open('data/bus.jpg', 'rb') as f:
-            files = {'file': f}
-            resp = requests.post(ENDPOINT + '/predict/v1',
-                                 files=files,
-                                 headers=HEADERS)
-
-            print(resp.text)
 
 
 if __name__ == '__main__':
