@@ -7,6 +7,7 @@ from yolov5 import post_process
 ANCHORS = 'data/anchors_yolov5.txt'
 
 RK3588_RKNN_MODEL = 'models/yolov8n640.rknn'
+# RK3588_RKNN_MODEL = 'models/yolov5s_relu.rknn'
 DEVICE_NAME = 'RK3588'
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
@@ -43,6 +44,7 @@ class DetectorRknnLite:
         file_bytes = np.frombuffer(image.read(), dtype=np.uint8)
         img_data_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img_data_ndarray, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (640, 640))
         img = np.expand_dims(img, 0)
         return img
     

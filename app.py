@@ -74,7 +74,7 @@ def predict_yolov5():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--engine', nargs='+',
+    parser.add_argument('-e', '--engine',
                         help='Set inference engine: rknn or onnx, default is onnx',
                         default='onnx')
     args = parser.parse_args()
