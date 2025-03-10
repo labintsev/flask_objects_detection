@@ -2,18 +2,25 @@ import cv2
 import numpy as np
 import time
 
-from yolov5 import post_process
+from yolov5 import post_process, nms_boxes
 
 ANCHORS = 'data/anchors_yolov5.txt'
-
-RK3588_RKNN_MODEL = 'models/yolov8n640.rknn'
-# RK3588_RKNN_MODEL = 'models/yolov5s_relu.rknn'
 DEVICE_NAME = 'RK3588'
 DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
 ONNX_MODEL = 'models/yolov5s_relu.onnx'
 
-class DetectorRknnLite:
+
+def rknn_builder():
+    # return DetectorRknnYolo11('./models/yolo11n_rknn/yolo11n.rknn')
+    return DetectorRknnYolo5('./models/yolov5s_relu.rknn')
+
+
+def onnx_builder():
+    return DetectorOnnx(ONNX_MODEL)
+
+
+class DetectorRknnYolo5:
     def __init__(self, model_path):
         from rknnlite.api import RKNNLite
         self.rknn_lite = RKNNLite()
@@ -36,6 +43,7 @@ class DetectorRknnLite:
         print('--> Running model')
         t0 = time.time()
         outputs = self.rknn_lite.inference(inputs=[image])
+        print('output shape: ', outputs[0].shape)
         boxes, classes, scores = post_process(outputs, self.anchors)
         print('Inference take: ', time.time() - t0, 'ms')
         return str(boxes), str(classes), str(scores)
@@ -105,13 +113,39 @@ class DetectorOnnxSliced(DetectorOnnx):
         return predict_sliced(img, self.onnx_session)
 
 
-def rknn_builder():
-    return DetectorRknnLite(RK3588_RKNN_MODEL)
-
-
-def onnx_builder():
-    return DetectorOnnx(ONNX_MODEL)
-
+class DetectorRknnYolo11:
+    def __init__(self, w):
+        from rknnlite.api import RKNNLite
+        self.model = RKNNLite()
+        self.model.load_rknn(w)
+        self.model.init_runtime()
+    
+    def preprocess(self, image_file):
+        file_bytes = np.frombuffer(image_file.read(), dtype=np.uint8)
+        img_ndarray = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img_ndarray, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (640, 640))
+        img = np.expand_dims(img, 0)
+        return img
+    
+    def predict(self, image_file):
+        image = self.preprocess(image_file)
+        result = self.model.inference(inputs=[image])
+        print('Outputs shape: ', result[0].shape)
+        boxes = result[0][0, :4, :]
+        boxes = np.swapaxes(boxes, 0, 1)
+        scores = result[0][0, 4, :]
+        top_idxs = np.argsort(scores)[:10]
+        top_scores = np.sort(scores)[::-1][:10]
+        top_boxes = boxes[top_idxs]
+        xyxy = np.copy(top_boxes)
+        xyxy[:, 0] = top_boxes[:, 0] - top_boxes[:, 2] / 2  # top left x
+        xyxy[:, 1] = top_boxes[:, 1] - top_boxes[:, 3] / 2  # top left y
+        xyxy[:, 2] = top_boxes[:, 0] + top_boxes[:, 2] / 2  # bottom right x
+        xyxy[:, 3] = top_boxes[:, 1] + top_boxes[:, 3] / 2  # bottom right y
+        print(top_scores)
+        return str(xyxy.astype(int)), [1]*10, str(top_scores)
+    
 
 def slice_image(image, window_size):
     """Generate sliding windows for the image."""
