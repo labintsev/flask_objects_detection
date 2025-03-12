@@ -21,6 +21,15 @@ class TestApi(unittest.TestCase):
                                     headers=HEADERS)
         # print(resp.text)
         self.assertIn('boxes', resp.text)
+    
+    def test_high_resolution(self):
+        with open('data/1035.jpg', 'rb') as f:
+            files = {'image_file': f}
+            resp = requests.post(ENDPOINT + '/predict',
+                                    files=files,
+                                    headers=HEADERS)
+        # print(resp.text)
+        self.assertIn('boxes', resp.text)
 
 
 
