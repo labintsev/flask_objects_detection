@@ -159,7 +159,6 @@ class DetectorRknnYolo5Sliced(Detector):
             for x in range(crops_x):
                 crop = img[y * self.window_size[1] : (y + 1) * self.window_size[1], 
                         x * self.window_size[0] : (x + 1) * self.window_size[0]]
-                crop = crop.transpose((2, 0, 1))
                 crop = np.expand_dims(crop, 0)
                 yield x, y, crop
 
@@ -170,6 +169,7 @@ class DetectorRknnYolo5Sliced(Detector):
         t0 = time.time()
         for x, y, crop in img_crops:
             outputs = self.rknn_lite.inference(inputs=[crop])
+            print("output shape: ", outputs[0].shape)
             boxes, classes, scores = post_process(outputs, self.anchors)
             if boxes is not None:
                 for box in boxes:
