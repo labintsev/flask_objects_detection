@@ -246,29 +246,3 @@ class DetectorRknnYolo11(Detector):
         xyxy[:, 3] = top_boxes[:, 1] + top_boxes[:, 3] / 2  # bottom right y
         print(top_scores)
         return str(xyxy.astype(int)), [1] * 10, str(top_scores)
-
-
-
-
-
-def predict_sliced(img, detector, window_size = (300, 300)):
-    all_outputs = []
-
-    # Inference
-    print("--> Running model")
-    t0 = time.time()
-    for x, y, window in slice_image(img[0], window_size):
-        window = np.expand_dims(window, 0)
-        outputs = detector.predict(img)
-        for output in outputs:
-            # Adjust the coordinates based on the window position
-            adjusted_output = [
-                output[0] + x / img.shape[2],
-                output[1] + y / img.shape[1],
-                output[2],
-                output[3],
-            ]
-            all_outputs.append(adjusted_output)
-    print("Inference take: ", time.time() - t0, "ms")
-
-    return all_outputs
