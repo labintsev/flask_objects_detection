@@ -11,8 +11,9 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from flask_httpauth import HTTPTokenAuth
 
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(APP_ROOT, 'uploads')
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -55,7 +56,7 @@ def home():
 def predict_yolov5():
     """Objects detection service"""
     print(request)
-    boxes = []
+    boxes, classes, scores = [], [], []
     if 'image_file' not in request.files:
         flash('No file part')
         return {'error': "No file in the request"}
@@ -67,6 +68,7 @@ def predict_yolov5():
     if image and allowed_file(image.filename):
         filename = secure_filename(image.filename)
         boxes, classes, scores = app.config['DETECTOR'].predict(image)
+        image.seek(0)
         image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         
     return {'boxes': boxes, 'classes': classes, 'scores': scores}
@@ -75,8 +77,8 @@ def predict_yolov5():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--engine',
-                        help='Set inference engine: rknn or onnx, default is onnx',
-                        default='onnx')
+                        help='Set inference engine: rknn or onnx, default is rknn',
+                        default='rknn')
     args = parser.parse_args()
     if args.engine == 'rknn':
         from detectors import rknn_builder
