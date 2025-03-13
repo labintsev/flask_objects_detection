@@ -4,6 +4,7 @@ Supported engines: onnx, rknn"""
 import argparse
 import atexit
 import os
+import time
 
 from dotenv import dotenv_values
 from flask import Flask, flash, request
@@ -30,9 +31,9 @@ tokens = { config['APP_TOKEN']: "user1", }
 def release_detector_resources():
     try:
         app.config['DETECTOR'].release()
-        print('Detector resources released')
+        app.logger.info('Detector resources released')
     except:
-        print('Error detector release')
+        app.logger.error('Error detector release')
 
 
 def allowed_file(filename):
@@ -67,10 +68,13 @@ def predict_yolov5():
 
     if image and allowed_file(image.filename):
         filename = secure_filename(image.filename)
+        t_0 = time.time() 
         boxes, classes, scores = app.config['DETECTOR'].predict(image)
         image.seek(0)
         image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
+        dt = time.time() - t_0
+        app.logger.info(f'Detected {filename}, {dt:.2f} sec, {boxes}, {classes}, {scores}')
+
     return {'boxes': boxes, 'classes': classes, 'scores': scores}
 
 

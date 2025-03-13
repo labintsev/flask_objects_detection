@@ -1,12 +1,13 @@
 import cv2
 import numpy as np
 import time
+import logging
 from abc import ABC, abstractmethod
 
 from yolov5 import post_process
 
 ANCHORS = "data/anchors_yolov5.txt"
-
+log = logging.getLogger('detector')
 
 class Detector(ABC):
     @abstractmethod
@@ -80,27 +81,22 @@ class DetectorRknnYolo5(Detector):
 
         self.rknn_lite = RKNNLite()
         self.anchors = np.loadtxt(ANCHORS).reshape(3, -1, 2).tolist()
-        print("--> Load RKNN model")
+        log.info("--> Load RKNN model")
         ret = self.rknn_lite.load_rknn(model_path)
         if ret != 0:
-            print("Load RKNN model failed")
+            log.error("Load RKNN model failed")
             exit(ret)
-        print("done")
-        print("--> Init runtime environment")
+        log.info("--> Init runtime environment")
         ret = self.rknn_lite.init_runtime()
         if ret != 0:
-            print("Init runtime environment failed")
+            log.error("Init runtime environment failed")
             exit(ret)
-        print("done")
+
 
     def predict(self, image_file):
         image = self.preprocess(image_file)
-        print("--> Running model")
-        t0 = time.time()
         outputs = self.rknn_lite.inference(inputs=[image])
-        print("output shape: ", outputs[0].shape)
         boxes, classes, scores = post_process(outputs, self.anchors)
-        print("Inference take: ", time.time() - t0, "ms")
         return str(boxes), str(classes), str(scores)
 
     def preprocess(self, image):
@@ -125,18 +121,16 @@ class DetectorRknnYolo5Sliced(Detector):
 
         self.rknn_lite = RKNNLite()
         self.anchors = np.loadtxt(ANCHORS).reshape(3, -1, 2).tolist()
-        print("--> Load RKNN model")
+        log.info("--> Load RKNN model")
         ret = self.rknn_lite.load_rknn(model_path)
         if ret != 0:
-            print("Load RKNN model failed")
+            log.error("Load RKNN model failed")
             exit(ret)
-        print("done")
-        print("--> Init runtime environment")
+        log.info("--> Init runtime environment")
         ret = self.rknn_lite.init_runtime()
         if ret != 0:
-            print("Init runtime environment failed")
+            log.error("Init runtime environment failed")
             exit(ret)
-        print("done")
         self.window_size = (640, 640)
         self.k_x = 1.0
         self.k_y = 1.0
@@ -154,7 +148,6 @@ class DetectorRknnYolo5Sliced(Detector):
         self.k_x = img_width / (self.window_size[0] * crops_x)
         self.k_y = img_height / (self.window_size[1] * crops_y)
         img = cv2.resize(img, (crops_x * self.window_size[0], crops_y * self.window_size[1]))
-        print("Resized image shape: ", img.shape)
         for y in range(crops_y):
             for x in range(crops_x):
                 crop = img[y * self.window_size[1] : (y + 1) * self.window_size[1], 
@@ -165,11 +158,8 @@ class DetectorRknnYolo5Sliced(Detector):
     def predict(self, image_file):
         img_crops = self.preprocess(image_file)
         all_boxes, all_classes, all_scores = [], [], []
-        print("--> Running model")
-        t0 = time.time()
         for x, y, crop in img_crops:
             outputs = self.rknn_lite.inference(inputs=[crop])
-            print("output shape: ", outputs[0].shape)
             boxes, classes, scores = post_process(outputs, self.anchors)
             if boxes is not None:
                 for box in boxes:
@@ -183,7 +173,6 @@ class DetectorRknnYolo5Sliced(Detector):
                     all_boxes.append(adjusted_boxes)
                     all_classes.extend(classes)
                     all_scores.extend(scores)
-        print("Inference take: ", time.time() - t0, "s")
         all_boxes = np.array(all_boxes, dtype=int)
         all_classes = np.array(all_classes, dtype=int)
         all_scores = np.array(all_scores)
@@ -203,13 +192,12 @@ class DetectorOnnx(Detector):
         self.model_path = model_path
         self.anchors = np.loadtxt(ANCHORS).reshape(3, -1, 2).tolist()
         self.onnx_session = onnxruntime.InferenceSession(model_path)
-        print("ONNX inputs: ", self.onnx_session.get_inputs()[0])
+        log.info("ONNX inputs: ", self.onnx_session.get_inputs()[0])
 
     def predict(self, image):
         img = self.preprocess(image)
         raw_output = self.onnx_session.run(None, {"images": img})
         output = self.postprocess(raw_output)
-        print(output)
         return output
 
     def preprocess(self, image):
@@ -236,7 +224,7 @@ class DetectorOnnxSliced(Detector):
         self.model_path = model_path
         self.anchors = np.loadtxt(ANCHORS).reshape(3, -1, 2).tolist()
         self.onnx_session = onnxruntime.InferenceSession(model_path)
-        print("ONNX inputs: ", self.onnx_session.get_inputs()[0])
+        log.info("ONNX inputs: ", self.onnx_session.get_inputs()[0])
         self.window_size = (640, 640)
         self.k_x = 1.0
         self.k_y = 1.0
@@ -250,8 +238,6 @@ class DetectorOnnxSliced(Detector):
     def predict(self, image_file):
         img_crops = self.preprocess(image_file)
         all_boxes, all_classes, all_scores = [], [], []
-        print("--> Running model")
-        t0 = time.time()
         for x, y, crop in img_crops:
             raw_output = self.onnx_session.run(None, {"images": crop})
             boxes, classes, scores = post_process(raw_output, self.anchors)
@@ -267,7 +253,6 @@ class DetectorOnnxSliced(Detector):
                     all_boxes.append(adjusted_boxes)
                     all_classes.extend(classes)
                     all_scores.extend(scores)
-        print("Inference take: ", time.time() - t0, "s")
 
         all_boxes = np.array(all_boxes, dtype=int)
         all_classes = np.array(all_classes, dtype=int)
@@ -281,7 +266,6 @@ class DetectorOnnxSliced(Detector):
         self.k_x = img_width / (self.window_size[0] * crops_x)
         self.k_y = img_height / (self.window_size[1] * crops_y)
         img = cv2.resize(img, (crops_x * self.window_size[0], crops_y * self.window_size[1]))
-        print("Resized image shape: ", img.shape)
         for y in range(crops_y):
             for x in range(crops_x):
                 crop = img[y * self.window_size[1] : (y + 1) * self.window_size[1], 
@@ -317,7 +301,6 @@ class DetectorRknnYolo11(Detector):
     def predict(self, image_file):
         image = self.preprocess(image_file)
         result = self.model.inference(inputs=[image])
-        print("Outputs shape: ", result[0].shape)
         boxes = result[0][0, :4, :]
         boxes = np.swapaxes(boxes, 0, 1)
         scores = result[0][0, 4, :]
@@ -329,5 +312,4 @@ class DetectorRknnYolo11(Detector):
         xyxy[:, 1] = top_boxes[:, 1] - top_boxes[:, 3] / 2  # top left y
         xyxy[:, 2] = top_boxes[:, 0] + top_boxes[:, 2] / 2  # bottom right x
         xyxy[:, 3] = top_boxes[:, 1] + top_boxes[:, 3] / 2  # bottom right y
-        print(top_scores)
         return str(xyxy.astype(int)), [1] * 10, str(top_scores)
