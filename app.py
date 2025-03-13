@@ -70,6 +70,7 @@ def predict_yolov5():
         filename = secure_filename(image.filename)
         t_0 = time.time() 
         boxes, classes, scores = app.config['DETECTOR'].predict(image)
+        boxes = boxes.replace('\n', ' ')
         image.seek(0)
         image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         dt = time.time() - t_0
