@@ -76,6 +76,12 @@ To start the Flask server, run:
 ```sh
 python app.py
 ```
+This run with default engine - rknn, for onnx use `-e` engine flag: 
+
+```sh
+python app.py -e onnx
+```
+
 
 By default, the server will run on `http://0.0.0.0:5000`.
 
